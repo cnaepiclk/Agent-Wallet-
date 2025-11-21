@@ -114,6 +114,8 @@
         #fullAmountDisplay { color: #2e7d32; }
         #loanAmountDisplay { color: #c62828; }
         #handAmountDisplay { color: #00796b; }
+        /* New Liability Color */
+        #liabilityAmountDisplay { color: #d32f2f; }
 
 
         /* --- FOOTER --- */
@@ -549,17 +551,26 @@
                 <!-- DYNAMICALLY ADDED BANKS CONTAINER -->
                 <div id="dynamicHomeButtons"></div>
 
-                <!-- FIXED BUTTONS (As requested) -->
+                <!-- FIXED BUTTONS -->
                 <button class="bank-btn" onclick="openBank('Hand')"><img src="https://i.postimg.cc/PqXG5s83/1001096915.jpg" alt="Hand" class="btn-img"></button>
                 <button class="bank-btn" onclick="openManagementView()"><img src="https://i.postimg.cc/Bb7S3Z6b/management-icon-logo-modern-line-style-high-quality-black-outline-pictogram-web-site-design-mobile-a.jpg" alt="Daily Summary" class="btn-img"></button>
                 <button class="bank-btn" onclick="openCashBookView()"><img src="https://i.postimg.cc/L8rdXXrq/12-Digital-Banking-Challenges-and-Opportunities-For-the-Banking-Industry-1.webp" alt="Cash Book" class="btn-img"></button>
                 <button class="bank-btn" onclick="openBank('WebManagement')"><img src="https://i.postimg.cc/YSYxZh9p/1001096932.png" alt="Web Management" class="btn-img"></button>
                 <button class="bank-btn" onclick="openBank('Personal')"><img src="https://i.postimg.cc/sXvyJjGz/images-(1).png" alt="Personal" class="btn-img"></button>
+                
+                <!-- *** NEW LIABILITY BUTTON (අපි ණය) *** -->
+                <button class="bank-btn" onclick="openBank('MyLiability')">
+                    <img src="https://i.postimg.cc/VNXCrpSM/cartoon-money-pile-vector-44511062.jpg" alt="අපි ණය" class="btn-img">
+                    <span class="btn-label-overlay">අපි ණය</span>
+                </button>
+
             </div>
             <div class="summary-box">
                 <div class="summary-row"><span class="summary-label">FULL AMOUNT</span><span class="summary-value" id="fullAmountDisplay">Rs. 0.00</span></div>
                 <div class="summary-row"><span class="summary-label">LOAN AMOUNT</span><span class="summary-value" id="loanAmountDisplay">Rs. 0.00</span></div>
                 <div class="summary-row"><span class="summary-label">HAND</span><span class="summary-value" id="handAmountDisplay">Rs. 0.00</span></div>
+                <!-- NEW LIABILITY ROW -->
+                <div class="summary-row"><span class="summary-label">අපි ණය</span><span class="summary-value" id="liabilityAmountDisplay">Rs. 0.00</span></div>
             </div>
         </div>
         <div class="grand-total-bar">
@@ -741,6 +752,8 @@
                 allData.activeBanks = [];
             }
             if (!allData.cashBookEntries) allData.cashBookEntries = [];
+            // INITIALIZE LIABILITY ARRAY
+            if (!allData.persistentLiabilities) allData.persistentLiabilities = [];
 
             selectedDateKey = getTodayString();
             document.getElementById('nativeDatePicker').value = selectedDateKey;
@@ -908,6 +921,7 @@
         function updateBankHeader() {
             if(currentBank === 'Personal') { document.getElementById('displayBankName').innerText = "Add Loan (Personal)"; document.getElementById('addBtn').innerText = "ADD LOAN"; } 
             else if (currentBank === 'WebManagement') { document.getElementById('displayBankName').innerText = "Web Management"; document.getElementById('addBtn').innerText = "ADD ENTRY"; } 
+            else if (currentBank === 'MyLiability') { document.getElementById('displayBankName').innerText = "අපි ණය"; document.getElementById('addBtn').innerText = "ADD DEBT"; } 
             else { 
                 // Try to format nice name from unique ID
                 if (currentBank.includes('-')) {
@@ -940,6 +954,10 @@
                 } else if (currentBank === 'Hand') {
                     if (!allData.persistentHand) allData.persistentHand = [];
                     allData.persistentHand.push(amount);
+                } else if (currentBank === 'MyLiability') {
+                    // *** NEW LOGIC FOR LIABILITY ***
+                    if (!allData.persistentLiabilities) allData.persistentLiabilities = [];
+                    allData.persistentLiabilities.push({ val: amount, desc: note.trim() || "Unnamed" });
                 } else {
                     if (!allData[selectedDateKey]) allData[selectedDateKey] = {};
                     if (!allData[selectedDateKey][currentBank]) allData[selectedDateKey][currentBank] = [];
@@ -959,6 +977,14 @@
                     okText: 'Next',
                     onConfirm: (values) => processTransaction(values.noteInput)
                 });
+            } else if (currentBank === 'MyLiability') {
+                 // *** PROMPT FOR LIABILITY NAME ***
+                 showCustomPrompt({
+                    title: `Enter Name for අපි ණය`,
+                    fields: [{ id: 'noteInput', placeholder: 'Name (නම)', required: true }],
+                    okText: 'Confirm',
+                    onConfirm: (values) => processTransaction(values.noteInput)
+                });
             } else {
                 processTransaction();
             }
@@ -969,8 +995,14 @@
             let transactions = [];
             if (currentBank === 'Hand') transactions = allData.persistentHand || [];
             else if (currentBank === 'Personal') transactions = allData.persistentLoan || [];
+            else if (currentBank === 'MyLiability') transactions = allData.persistentLiabilities || [];
             else transactions = ((allData[selectedDateKey] || {})[currentBank] || []);
-            const cardBorderColor = (currentBank === 'Personal') ? '#c62828' : (currentBank === 'Hand') ? '#00796b' : '#6200ea';
+            
+            // Color logic
+            let cardBorderColor = '#6200ea';
+            if (currentBank === 'Personal') cardBorderColor = '#c62828';
+            else if (currentBank === 'Hand') cardBorderColor = '#00796b';
+            else if (currentBank === 'MyLiability') cardBorderColor = '#ff9800'; // Orange for debt
 
             [...transactions].reverse().forEach((item, revIndex) => {
                 const originalIndex = transactions.length - 1 - revIndex;
@@ -991,6 +1023,7 @@
                 let transactions;
                 if (currentBank === 'Hand') transactions = allData.persistentHand;
                 else if (currentBank === 'Personal') transactions = allData.persistentLoan;
+                else if (currentBank === 'MyLiability') transactions = allData.persistentLiabilities;
                 else transactions = allData[selectedDateKey][currentBank];
                 
                 transactions.splice(index, 1);
@@ -1001,9 +1034,13 @@
         }
         
         function calculateAllTotals() {
-            let fullAmount = 0, loanAmount = 0, handAmount = 0;
+            let fullAmount = 0, loanAmount = 0, handAmount = 0, liabilityAmount = 0;
+            
             if (allData.persistentHand) handAmount = allData.persistentHand.reduce((s, a) => s + a, 0);
             if (allData.persistentLoan) loanAmount = allData.persistentLoan.reduce((s, i) => s + i.val, 0);
+            // CALC LIABILITY TOTAL
+            if (allData.persistentLiabilities) liabilityAmount = allData.persistentLiabilities.reduce((s, i) => s + i.val, 0);
+
             const dayData = allData[selectedDateKey]; 
             if (dayData) {
                 for (let bankKey in dayData) {
@@ -1014,10 +1051,18 @@
                     }
                 }
             }
-            let grandTotal = fullAmount + loanAmount + handAmount;
+            
+            // *** CALCULATION LOGIC UPDATE ***
+            // Total Assets = Full Amount (Banks) + Loan + Hand
+            // Net Balance = Total Assets - Liability
+            let totalAssets = fullAmount + loanAmount + handAmount;
+            let grandTotal = totalAssets - liabilityAmount;
+
             document.getElementById('fullAmountDisplay').innerText = "Rs. " + fullAmount.toFixed(2);
             document.getElementById('loanAmountDisplay').innerText = "Rs. " + loanAmount.toFixed(2);
             document.getElementById('handAmountDisplay').innerText = "Rs. " + handAmount.toFixed(2);
+            document.getElementById('liabilityAmountDisplay').innerText = "Rs. " + liabilityAmount.toFixed(2);
+
             const displayEl = document.getElementById('mainTotalDisplay');
             displayEl.innerText = "Rs. " + grandTotal.toFixed(2);
             displayEl.classList.toggle('negative', grandTotal < 0);
@@ -1032,10 +1077,17 @@
         }
         function renderManagementList() {
             const container = document.getElementById('managementListContainer'); container.innerHTML = ""; let hasEntries = false;
+            
             const loanTotal = (allData.persistentLoan || []).reduce((s, i) => s + i.val, 0);
             if (loanTotal > 0) { createSummaryCard(container, "Loan (Personal)", loanTotal, '#c62828'); hasEntries = true; }
+            
             const handTotal = (allData.persistentHand || []).reduce((s, a) => s + a, 0);
             if (handTotal > 0) { createSummaryCard(container, "Hand", handTotal, '#00796b'); hasEntries = true; }
+
+            // Show Liability in Management View
+            const liabilityTotal = (allData.persistentLiabilities || []).reduce((s, i) => s + i.val, 0);
+            if (liabilityTotal > 0) { createSummaryCard(container, "අපි ණය (To Pay)", liabilityTotal, '#d32f2f'); hasEntries = true; }
+
             const dayData = allData[selectedDateKey] || {};
             for (const bankKey in dayData) {
                 if (bankKey.startsWith('persistent')) continue;
